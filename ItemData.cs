@@ -13,9 +13,10 @@ namespace AllePro
     public float Price { get; set; }
 
     String ImageLocalName { get; set; }
-    int UserName { get; set; }
-    int CathegoryId { get; set; }
-    long ImageId { get; set; }
+    public int UserName { get; set; }
+    public int CathegoryId { get; set; }
+    public long ImageId { get; set; }
+    public List<String> ParsedName { get; set; }
 
     public Image GetImage()
     {
@@ -28,6 +29,7 @@ namespace AllePro
     }
 
     public ItemData(long ItemId, String Name, String ImageUrl, int User, int CatId, float CurrentPrice) {
+      ParsedName = null;
       AuctionName = Name;
       UserName = User;
       CathegoryId = CatId;

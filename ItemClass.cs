@@ -8,7 +8,7 @@ namespace AllePro
   class ItemClass
   {
     public List<ItemData> Elements { get; set; }
-    public double MeanValue { get; set; }
+    //public double MeanValue { get; set; }
 
     public ItemClass(List<ItemData> InputElements)
     {

@@ -8,6 +8,11 @@ using System.Text;
 using System.Windows.Forms;
 
 using AllePro.AllegroApiService;
+using FuzzyString;
+using XnaFan.ImageComparison;
+using System.Text.RegularExpressions;
+using System.Diagnostics;
+using System.Globalization;
 
 namespace AllePro
 {
@@ -26,26 +31,221 @@ namespace AllePro
       View
     };
 
-    Random rand = new Random();
+    public void parseName(ItemData item)
+    {
+      if (item.ParsedName != null)
+      {
+        return;
+      }
+
+      String cleanedName = item.AuctionName.ToLower();
+      cleanedName = cleanedName.Replace("+", " ");
+      cleanedName = cleanedName.Replace("-", " ");
+      cleanedName = cleanedName.Replace("!", " ");
+      cleanedName = cleanedName.Replace("@", " ");
+      cleanedName = cleanedName.Replace("\"", " ");
+      cleanedName = cleanedName.Replace("'", " ");
+      cleanedName = cleanedName.Replace(",", " ");
+      cleanedName = cleanedName.Replace(".", " ");
+      cleanedName = cleanedName.Replace("\\", " ");
+      cleanedName = cleanedName.Replace("/", " ");
+      cleanedName = cleanedName.Replace("*", " ");
+      cleanedName = cleanedName.Replace("=", " ");
+      cleanedName = cleanedName.Replace("nowy", " ");
+      cleanedName = cleanedName.Replace("używany", " ");
+      cleanedName = cleanedName.Replace("super", " ");
+      cleanedName = cleanedName.Replace("tanio", " ");
+      cleanedName = cleanedName.Replace("tani", " ");
+      cleanedName = cleanedName.Replace("gratis", " ");
+      cleanedName = cleanedName.Replace("okazja", " ");
+      cleanedName = cleanedName.Replace("cena", " ");
+      cleanedName = cleanedName.Replace("cenie", " ");
+      cleanedName = cleanedName.Replace("prezent", " ");
+      cleanedName = cleanedName.Replace("hit", " ");
+      cleanedName = cleanedName.Replace("szybki", " ");
+      cleanedName = cleanedName.Replace("szybko", " ");
+      cleanedName = cleanedName.Replace("wyprzedaż", " ");
+      String[] ss = cleanedName.Split(new char[]{' '});
+      List<String> pName = new List<String>();
+      foreach(String s in ss) {
+        if (s != null && s.Length > 0)
+        {
+          pName.Add(s);
+        }
+      }
+      item.ParsedName = pName;
+    }
+
+    public double[] getNameSimilarity(ItemData first, ItemData second)
+    {
+      parseName(first);
+      parseName(second);
+
+      double similarity = 0;
+      int numTheSameWords = 0;
+      List<String> shoterNameWords = first.ParsedName.Count < second.ParsedName.Count ? first.ParsedName
+          : second.ParsedName;
+      List<String> longerNameWords = first.ParsedName.Count >= second.ParsedName.Count ? first.ParsedName
+          : second.ParsedName;
+      double oneWordSimilarityWeight = (double)1 / (double)shoterNameWords.Count;
+      for (int i = 0; i < shoterNameWords.Count; i++)
+      {
+        if (longerNameWords.Contains(shoterNameWords[i]))
+        {
+          similarity += oneWordSimilarityWeight;
+          numTheSameWords++;
+        }
+      }
+      return new double[] { similarity, numTheSameWords };
+    }
+
+    public bool isTheSameProduct(ItemData first, ItemData second)
+    {
+      double[] nameSimilarityTab = getNameSimilarity(first, second);
+      double nameSimilarity = nameSimilarityTab[0];
+      double nameSimilarityWordsNum = nameSimilarityTab[1];
+      if (nameSimilarity < 0.3)
+      {
+        return false;
+      }
+      System.Console.Out.WriteLine("NameSimilarity=" + nameSimilarity + " dla " + this + " i " + p);
+      // if (nameSimilarity >= 1) {
+      // return true;
+      // }
+
+      double imageSimilarity = ItemClassificator4(first, second);
+        //getImageSimilarity(first, second);
+      System.Console.Out.WriteLine("ImageSimilarity=" + imageSimilarity + " dla " + this + " i " + p);
+      if (imageSimilarity >= 0.98)
+      {
+        return true;
+      }
+
+      if (nameSimilarityWordsNum >= 5 && nameSimilarity > 0.7)
+      {
+        System.Console.Out.WriteLine("High name similarity=" + nameSimilarity + " dla " + this + " i " + p
+            + ". Num of the same words: " + nameSimilarityWordsNum);
+        return true;
+      }
+
+      System.Console.Out.WriteLine("Name+ImageSimilarity=" + (imageSimilarity + nameSimilarity) + " dla " + this + " i " + p);
+      if (imageSimilarity + nameSimilarity > 1.7)
+      {
+        return true;
+      }
+      return false;
+    }
 
     private double ItemClassificator1(ItemData item, ItemData item2)
     {
-      return rand.NextDouble();
+      if (item.UserName == item2.UserName)
+      {
+        return 1.0;
+      }
+      return 0.0;
     }
 
     private double ItemClassificator2(ItemData item, ItemData item2)
     {
-      return rand.NextDouble();
+      if (item.CathegoryId == item2.CathegoryId)
+      {
+        return 1.0;
+      }
+      return 0.0;
     }
 
     private double ItemClassificator3(ItemData item, ItemData item2)
     {
-      return rand.NextDouble();
+      string name1 = item.AuctionName;
+      string name2 = item2.AuctionName;
+
+      name1 = name1.ToLower();
+      name2 = name2.ToLower();
+
+      string[] ToRemove = {
+                          "kolorów",
+                          "kolory",
+                          "promocja",
+                          "super",
+                          "okazja",
+                          "zwrot",
+                          "gwarancja",
+                          "wysyłka",
+                          "kurier",
+                          "hit",
+                          "fv",
+                          "bcm"};
+
+      List<string> ToRemoveList = new List<string>(ToRemove);
+
+      String additionalToRemove = SearchQueryField.Text.ToLower();
+
+      foreach (string AdditionalElem in SearchQueryField.Text.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+      {
+        ToRemoveList.Add(AdditionalElem);
+      }
+
+      foreach (string BlackWord in ToRemoveList)
+      {
+        name1 = name1.Replace(BlackWord, "");
+        name2 = name2.Replace(BlackWord, "");
+      }
+
+      RegexOptions options = RegexOptions.None;
+      Regex regex = new Regex(@"[ ]{2,}", options);
+      name1 = regex.Replace(name1, @" ");
+      name2 = regex.Replace(name2, @" ");
+
+      name1 = name1.Trim();
+      name2 = name2.Trim();
+      double test = ComparisonMetrics.RatcliffObershelpSimilarity(name1, name2);
+      return test; // ComparisonMetrics.LevenshteinDistance(name1, name2); //RatcliffObershelpSimilarity(name1, name2);
     }
 
     private double ItemClassificator4(ItemData item, ItemData item2)
     {
-      return rand.NextDouble();
+      
+      double test = 0.0;
+      /*
+      try
+      {
+        // Redirect the output stream of the child process.
+        p.StartInfo.UseShellExecute = false;
+        p.StartInfo.CreateNoWindow = true;
+        //p.StartInfo.WorkingDirectory = "cygwinDLLs\\";
+        //p.StartInfo.RedirectStandardOutput = true;
+        p.StartInfo.RedirectStandardError = true;
+        p.StartInfo.FileName = "cygwinDLLs\\compare.exe";
+        p.StartInfo.Arguments = String.Format("-metric ncc Images\\{0}.jpg Images\\{1}.jpg :null", item.ImageId, item2.ImageId);
+        p.Start();
+        // Do not wait for the child process to exit before
+        // reading to the end of its redirected stream.
+        // p.WaitForExit();
+        // Read the output stream first and then wait.
+       // string output = p.StandardOutput.ReadToEnd();
+        string output = p.StandardError.ReadToEnd();
+        p.WaitForExit();
+
+        var nfi = new NumberFormatInfo();
+
+        nfi.NumberDecimalSeparator = ".";
+        test = Double.Parse(output, nfi);
+      }
+      catch (Exception error)
+      {
+        System.Console.Out.WriteLine(error.Message);
+      }*/
+      try
+      {
+        test = ImageTool.GetPercentageDifference("Images\\" + item.GetImageKey() + ".jpg", "Images\\" + item2.GetImageKey() + ".jpg", 50);
+      }
+      catch (Exception Error)
+      {
+
+      }
+      
+
+      return test;
     }
 
     private AppState GlobalState = AppState.Login;
@@ -208,7 +408,16 @@ namespace AllePro
 
           foreach (SearchResponseType Item in ResponseTypes)
           {
-            NewElements.Add(new ItemData(Item.sitid, Item.sitname, Item.sitthumburl, Item.sitsellerinfo.sellerid, Item.sitcategoryid, Item.sitprice));
+            float price = 0;
+            if (Item.sitbuynowprice > 0)
+            {
+              price = Item.sitbuynowprice;
+            }
+            else
+            {
+              price = Item.sitprice;
+            }
+            NewElements.Add(new ItemData(Item.sitid, Item.sitname, Item.sitthumburl, Item.sitsellerinfo.sellerid, Item.sitcategoryid, price));
           }
 
           Query.searchoffset += 1;
@@ -258,31 +467,40 @@ namespace AllePro
       List<ItemData> SourceList = (List<ItemData>)e.Argument;
       List<ItemClass> ResultClusters = new List<ItemClass>();
 
-      double[] weights = { 1.0, 1.0, 1.0, 1.0 };
-      double threshold = 2.0;
+      double[] weights = { 0.4, 0.9, 1.5, 1.0 };
+      double threshold = 2;
+
+      double[,] itemsRelations = new double[SourceList.Count, SourceList.Count];
+      Dictionary<String, double> ItemsRelations = new Dictionary<String, double>();
+
+      double itemValue = 0.0;
+
+      int kl = 0, j = 0;
+      /*foreach (ItemData Item1 in SourceList)
+      {
+        kl++;
+        foreach (ItemData Item2 in SourceList)
+        {
+          j++;
+          double[] itemValues = { ItemClassificator1(Item1, Item2), 
+                                  ItemClassificator2(Item1, Item2), 
+                                  ItemClassificator3(Item1, Item2), 
+                                  ItemClassificator4(Item1, Item2) };
+          for (int k = 0; k < itemValues.Length; k++)
+          {
+            itemValue += itemValues[k] * weights[k];
+          }
+          ItemsRelations[Item1.ImageId.ToString() + Item2.ImageId.ToString()] = itemValue;
+          itemValue = 0;
+        }
+      }*/
 
       foreach (ItemData Item1 in SourceList)
       {
-        foreach (ItemData Item2 in SourceList)
-        {
-
-        }
-      }
-
-      foreach (ItemData item in SourceList)
-      {
-        double[] itemValues = { ItemClassificator1(item), ItemClassificator2(item), ItemClassificator3(item), ItemClassificator4(item) };
-        double itemValue = 0.0;
-        for (int i = 0; i < itemValues.Length; i++)
-        {
-          itemValue += itemValues[i] * weights[i];
-        }
-
         if (ResultClusters.Count == 0)
         {
           ResultClusters.Add(new ItemClass());
-          ResultClusters[0].Elements.Add(item);
-          ResultClusters[0].MeanValue = itemValue;
+          ResultClusters[0].Elements.Add(Item1);
         }
         else
         {
@@ -291,26 +509,27 @@ namespace AllePro
           double ClosestClusterDistance = Double.MaxValue; // Lest start from a giant length so that everything will bo closer
           foreach (ItemClass cluster in ResultClusters)
           {
-            if (Math.Abs(itemValue - cluster.MeanValue) < ClosestClusterDistance)
+            /*double MeanValue = 0.0;
+            foreach (ItemData Item2 in cluster.Elements)
             {
-              ClosestClusterDistance = Math.Abs(itemValue - cluster.MeanValue);
-              ClosestClusterIndex = i;
+              MeanValue += ItemsRelations[Item1.ImageId.ToString() + Item2.ImageId.ToString()];
             }
-            i++;
+            if (ClosestClusterDistance > MeanValue)
+            {
+              ClosestClusterIndex = i;
+              ClosestClusterDistance = MeanValue;
+            }
+            i++;*/
           }
           if (ClosestClusterDistance == Double.MaxValue || ClosestClusterDistance > threshold)
           {
             // No suitable clusters found, create a new one
             ResultClusters.Add(new ItemClass());
-            ResultClusters[ResultClusters.Count - 1].Elements.Add(item);
-            ResultClusters[ResultClusters.Count - 1].MeanValue = itemValue;
+            ResultClusters[ResultClusters.Count - 1].Elements.Add(Item1);
           }
           else
           {
-            ResultClusters[ClosestClusterIndex].Elements.Add(item);
-            ResultClusters[ClosestClusterIndex].MeanValue *= (ResultClusters[ClosestClusterIndex].Elements.Count - 1);
-            ResultClusters[ClosestClusterIndex].MeanValue += itemValue;
-            ResultClusters[ClosestClusterIndex].MeanValue /= ResultClusters[ClosestClusterIndex].Elements.Count;
+            ResultClusters[ClosestClusterIndex].Elements.Add(Item1);
           }
         }
       }
