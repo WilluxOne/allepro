@@ -34,7 +34,7 @@ namespace AllePro
       UserName = User;
       CathegoryId = CatId;
       ImageId = ItemId;
-
+      Price = CurrentPrice;
       String ImageFolder = "Images";
 
       if (!System.IO.Directory.Exists(ImageFolder))

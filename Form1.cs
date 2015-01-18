@@ -108,14 +108,14 @@ namespace AllePro
       {
         return false;
       }
-      System.Console.Out.WriteLine("NameSimilarity=" + nameSimilarity + " dla " + this + " i " + p);
+      //System.Console.Out.WriteLine("NameSimilarity=" + nameSimilarity + " dla " + this + " i " + first.AuctionName);
       // if (nameSimilarity >= 1) {
       // return true;
       // }
 
       double imageSimilarity = ItemClassificator4(first, second);
         //getImageSimilarity(first, second);
-      System.Console.Out.WriteLine("ImageSimilarity=" + imageSimilarity + " dla " + this + " i " + p);
+      //System.Console.Out.WriteLine("ImageSimilarity=" + imageSimilarity + " dla " + this + " i " + p);
       if (imageSimilarity >= 0.98)
       {
         return true;
@@ -123,12 +123,12 @@ namespace AllePro
 
       if (nameSimilarityWordsNum >= 5 && nameSimilarity > 0.7)
       {
-        System.Console.Out.WriteLine("High name similarity=" + nameSimilarity + " dla " + this + " i " + p
-            + ". Num of the same words: " + nameSimilarityWordsNum);
+        //System.Console.Out.WriteLine("High name similarity=" + nameSimilarity + " dla " + this + " i " + p
+        //    + ". Num of the same words: " + nameSimilarityWordsNum);
         return true;
       }
 
-      System.Console.Out.WriteLine("Name+ImageSimilarity=" + (imageSimilarity + nameSimilarity) + " dla " + this + " i " + p);
+      //System.Console.Out.WriteLine("Name+ImageSimilarity=" + (imageSimilarity + nameSimilarity) + " dla " + this + " i " + p);
       if (imageSimilarity + nameSimilarity > 1.7)
       {
         return true;
@@ -243,7 +243,8 @@ namespace AllePro
       {
 
       }
-      
+
+      test = 1.0 - test;
 
       return test;
     }
@@ -507,6 +508,7 @@ namespace AllePro
           int ClosestClusterIndex = 0;
           int i = 0;
           double ClosestClusterDistance = Double.MaxValue; // Lest start from a giant length so that everything will bo closer
+          bool NewClass = true;
           foreach (ItemClass cluster in ResultClusters)
           {
             /*double MeanValue = 0.0;
@@ -519,18 +521,32 @@ namespace AllePro
               ClosestClusterIndex = i;
               ClosestClusterDistance = MeanValue;
             }
-            i++;*/
+            ;*/
+            uint match = 0;
+            foreach (ItemData Item2 in cluster.Elements)
+            {
+              if (isTheSameProduct(Item1, Item2))
+              {
+                match++;
+              }
+            }
+            if (match >= 0.8 * cluster.Elements.Count)
+            {
+              cluster.Elements.Add(Item1);
+              NewClass = false;
+              break;
+            }
           }
-          if (ClosestClusterDistance == Double.MaxValue || ClosestClusterDistance > threshold)
+          if (NewClass) //ClosestClusterDistance == Double.MaxValue || ClosestClusterDistance > threshold)
           {
             // No suitable clusters found, create a new one
             ResultClusters.Add(new ItemClass());
             ResultClusters[ResultClusters.Count - 1].Elements.Add(Item1);
           }
-          else
-          {
-            ResultClusters[ClosestClusterIndex].Elements.Add(Item1);
-          }
+          //else
+          //{
+            
+          //}
         }
       }
 
@@ -552,13 +568,15 @@ namespace AllePro
       }
       ClusteredItems = (List<ItemClass>)e.Result;
 
+      ClusteredItems = ClusteredItems.OrderByDescending(x => x.Elements.Count).ToList();
+        //Elements.OrderBy(x => x.Price).ToList();
       ClusterImages.ImageSize = new Size(128, 96);
 
       foreach(ItemClass cluster in ClusteredItems)
       {
         ClusterImages.Images.Add(cluster.Elements[0].GetImageKey(), cluster.Elements[0].GetImage());
         ClusterListView.LargeImageList = ClusterImages;
-        ClusterListView.Items.Add(cluster.Elements[0].AuctionName + " Price: " + cluster.Elements[0].Price, cluster.Elements[0].GetImageKey());
+        ClusterListView.Items.Add("Elementy: " + cluster.Elements.Count.ToString() + " " + cluster.Elements[0].AuctionName + " Cena: " + cluster.Elements[0].Price + "zł", cluster.Elements[0].GetImageKey());
       }
 
       GlobalState = AppState.View;
